@@ -1,0 +1,15 @@
+'PACKAGES NEED TO BE INSTALLED
+
+enter this command in terminal to install package:
+
+pip install flask
+pip install bs4
+pip install requests
+pip install selenium
+pip install html5lib
+pip install fpdf
+pip install subprocess
+pip install gunicorn
+
+
+'
