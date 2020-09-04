@@ -1,20 +1,820 @@
-beautifulsoup4==4.9.1
-bs4==0.0.1
-certifi==2020.6.20
-chardet==3.0.4
-click==7.1.2
-Flask==1.1.2
-fpdf==1.7.2
-gunicorn==20.0.4
-html5lib==1.1
-idna==2.10
-itsdangerous==1.1.0
-Jinja2==2.11.2
-MarkupSafe==1.1.1
-requests==2.24.0
-selenium==3.141.0
-six==1.15.0
-soupsieve==2.0.1
-urllib3==1.25.10
-webencodings==0.5.1
-Werkzeug==1.0.1
+'''
+from flask import Flask, jsonify, request, send_from_directory
+from flask_api import status
+from flask_cors import CORS
+'''
+#from driver import webdriver
+from fpdf import Template
+import subprocess
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+import time
+import ast
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import  NoSuchElementException
+import os
+import json
+from fpdf import FPDF 
+import html5lib
+import itertools
+import json
+#app = Flask(__name__, static_url_path='')
+#CORS(app)
+
+#chrome_driver_path ='/home/assassincreed/Pictures/chromedriver_linux645/chromedriver'
+#chrome_driver_path ='/usr/bin/chromedriver'
+amazon_link = 'https://www.amazon.in/'
+tneb_link = 'https://www.tnebnet.org/awp/login'
+
+
+
+
+
+
+state_name={'Andhra Pradesh': '//a[text()="Andhra Pradesh"]', 'Assam': '//a[text()="Assam"]', 'Bihar': '//a[text()="Bihar"]','Chandigarh':'//a[text()="Chandigarh"]', 'Chattisgarh': '//a[text()="Chattisgarh"]', 'Dadra and Nagar Haveli': '//a[text()="Dadra and Nagar Haveli"]', 
+            'Daman and Diu': '//a[text()="Daman and Diu"]', 'Goa': '//a[text()="Goa"]', 'Gujarat': '//a[text()="Gujarat"]', 'Haryana': '//a[text()="Haryana"]', 'Himachal Pradesh': '//a[text()="Himachal Pradesh"]', 'Jharkhand': '//a[text()="Jharkhand"]', 
+            'Karnataka': '//a[text()="Karnataka"]', 'Kerala': '//a[text()="Kerala"]' , 'Madhya Pradesh': '//a[text()="Madhya Pradesh"]', 'Maharashtra': '//a[text()="Maharashtra"]', 'Meghalaya': '//a[text()="Meghalaya"]', 'Mizoram':'//a[text()="Mizoram"]' , 
+            'Nagaland': '//a[text()="Nagaland"]', 'New Delhi': '//a[text()="New Delhi"]', 'Odisha': '//a[text()="Odisha"]', 'Puducherry': '//a[text()="Puducherry"]', 'Punjab':  '//a[text()="Punjab"]', 'Rajasthan': '//a[text()="Rajasthan"]', 'Sikkim': '//a[text()="Sikkim"]', 
+            'Tamil Nadu': '//a[text()="Tamil Nadu"]', 'Telangana': '//a[text()="Telangana"]', 'Tripura': '//a[text()="Tripura"]', 'Uttar Pradesh':  '//a[text()="Uttar Pradesh"]', 'Uttarakhand': '//a[text()="Uttarakhand"]', 'West Bengal': '//a[text()="West Bengal"]'}
+
+region_button={0:'button[name^="popupForm:formList:0"]',1:'button[name^="popupForm:formList:1"]',2:'button[name^="popupForm:formList:2"]',3:'button[name^="popupForm:formList:3"]'
+,4:'button[name^="popupForm:formList:4"]',5:'button[name^="popupForm:formList:5"]',6:'button[name^="popupForm:formList:6"]',7:'button[name^="popupForm:formList:7"]'
+,8:'button[name^="popupForm:formList:8"]'}
+
+button_finder={4:0,8:1,12:2,16:3,20:4}
+
+data={
+"aws_user_login":"9444460204",
+"aws_password":"Vgkvn@1234",
+
+"tneb_check_id":"09206024362",
+"tneb_password": "77ronaldo",
+"tneb_user_id": "01015039419",
+"state": "Tamil Nadu",
+"pay_option":"yes"
+}
+bill_path='./payment_bills'
+
+class WebDriver:
+      
+       def __init__(self,headless=True):
+             self.options =  webdriver.ChromeOptions()
+             self.options.add_argument('--disable-extensions')
+             if headless:
+                 self.options.add_argument('--headless')
+                 self.options.add_argument('--disable-gpu')
+                 self.options.add_argument('--no-sandbox')
+                 self.options.add_argument("--window-size=1420,1080")
+             self.options.add_experimental_option(
+               'prefs', {
+                
+                'download.prompt_for_download': False,
+                'download.directory_upgrade': True,
+                'safebrowsing.enabled': True
+                }
+             )     
+       def open(self):
+        self.driver = webdriver.Chrome(options=self.options)
+        self.driver.implicitly_wait(10)
+       def __enter__(self):
+        self.open()
+        return self
+
+       def __exit__(self, *args, **kwargs):
+        self.close()
+
+       
+
+       def close(self):
+        self.driver.quit()
+
+
+       def __get_billamount__(self):
+        content = { "data": None, "error": None  }
+        #api_status = status.HTTP_200_OK
+        #if request.method == 'POST':
+        #data = request.get_json();
+        key_count=0
+        key_check=['tneb_user_id','tneb_password','tneb_check_id']
+        for k,v in data.items():
+             if k in key_check:
+                  key_count+=1
+
+        if key_count ==3:
+          try:
+            #self.driver = webdriver.Chrome(options=self.options)
+            self.driver.get(tneb_link)
+            mail_or_number=self.driver.find_element_by_xpath('//*[@id="userName"]')
+            mail_or_number.send_keys(data['tneb_user_id'])
+            user_password=self.driver.find_element_by_xpath('//*[@id="password"]')
+            user_password.send_keys(data['tneb_password'])
+            self.driver.find_element_by_xpath('//*[@id="lin"]/table/tbody/tr/td[1]/table/tbody/tr[6]/td/input').click()
+            time.sleep(3)
+            self.driver.find_element_by_xpath('//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[7]').click()
+            time.sleep(2)
+            self.driver.find_element_by_css_selector('button[class^="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only"]').click()
+            time.sleep(1)
+            region_num=int(data['tneb_check_id'][1])-1
+            self.driver.find_element_by_css_selector(region_button[region_num]).click()
+            sub_consumer_num=self.driver.find_element_by_xpath('//*[@id="form:consumerRef"]')
+            sub_consumer_num.send_keys(data['tneb_check_id'][2:])
+            time.sleep(4)
+            self.driver.find_element_by_xpath('//span[text()="Check detail"]').click()
+            time.sleep(1)
+            self.driver.find_element_by_xpath('//span[text()="Confirm"]').click()
+            time.sleep(2)
+            self.driver.find_element_by_xpath('//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[2]').click()
+            time.sleep(1)
+            info_html=BeautifulSoup(self.driver.page_source, 'html5lib')
+            info_div=info_html.find('div',class_='ui-fieldset-content')
+            info_div_two=info_div.find_all('div',class_='ui-dt-c')
+            info_div_two_clone=info_div_two[:]
+            table_head=[]
+            for ff in info_div_two:
+               if 'span' in str(ff):
+                   table_head.append(ff)
+                   info_div_two_clone.remove(ff)
+               else:
+                   break
+            table_value=[]
+            for gg in info_div_two_clone:
+               if 'div' in str(gg):
+                  table_value.append(gg)
+            
+            table_head_col=list(filter(None, [ho.get_text() for ho in table_head]))[:-1]
+            row_value=list(filter(None, [hg.get_text() for hg in table_value]))
+            row_value_index=row_value.index(data['tneb_check_id'])
+            table_value_row=row_value[row_value_index:row_value_index+5]
+            if 'Pay' in table_value_row[-1]:
+                 table_value_row=table_value_row[:-1]
+            
+            if len(table_head_col)>len(table_value_row) and len(table_head_col)-len(table_value_row)==1 :
+                    table_value_row.append('-')
+            due_bill_info= dict(zip(table_head_col, table_value_row))
+            
+            content["data"] = { "due_data": due_bill_info, "parse_data": {} }
+            if "Bill Amt (Rs)" in due_bill_info:
+                #content["data"]["parse_data"]["EB Tran id"]=data['tneb_tran_id']
+                content["data"]["parse_data"]["amount"] = due_bill_info["Bill Amt (Rs)"]
+            if "Consumer Address" in due_bill_info:
+                content["data"]["parse_data"]["address"] = due_bill_info["Consumer Address"]
+            if "Name" in due_bill_info:
+                content["data"]["parse_data"]["name"] = due_bill_info["Consumer Name"]
+            if "Consumer No" in due_bill_info:
+                content["data"]["parse_data"]["number"] = due_bill_info["Consumer No"]
+            if "Due Date" in due_bill_info:
+                content["data"]["parse_data"]["due_date"] = due_bill_info["Due Date"]
+            
+            time.sleep(2)
+            self.driver.find_element_by_xpath('//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[8]').click()
+            time.sleep(1)
+            cross_html=BeautifulSoup(self.driver.page_source, 'html5lib')
+            pagess=cross_html.find('span',class_='ui-paginator-pages')
+            pages_num=[hh.get_text() for hh in pagess]
+            add_value=0
+            for ll in pages_num:
+                 self.driver.find_element_by_xpath('//span[text()='+str(ll)+']').click()
+                 time.sleep(2)
+                 cross_htmls=BeautifulSoup(self.driver.page_source, 'html5lib')
+                 cross_div=cross_htmls.find('div',class_='ui-fieldset-content')
+                 cross_div_two=cross_div.find_all('div',class_='ui-dt-c')
+                 cross_div_two_clone=cross_div_two[:]
+            
+                 cross_table_value=[]
+                 for gg in cross_div_two_clone:
+                    if 'div' in str(gg):
+                       cross_table_value.append(gg)
+            
+            
+                 cross_row_value=list(filter(None, [hg.get_text() for hg in cross_table_value]))[4:]
+                 if data['tneb_check_id'] in cross_row_value:
+                      button_key=cross_row_value.index(data['tneb_check_id'])+1
+                      if cross_row_value.index(data['tneb_check_id']) % 2 !=0:
+                            button_key=button_key+1
+            
+                      button_key_add=button_key+3
+                      index_cross=str(button_finder[button_key_add]+add_value)
+                      button_str='button[id*=":'+index_cross+':"]'
+                      self.driver.find_element_by_css_selector(button_str).click()
+                      break
+                 else:
+                    add_value+=5
+                    continue
+            
+            self.driver.close()
+          except Exception as e:
+            content["error"]=str(e)
+            return content, api_status
+        #else:
+         #   check_list=['tneb_user_id','tneb_password','tneb_check_id']
+          ## content["error"] = {
+            ##   "parameters":[keys for keys in check_list if keys not in given_list]
+            #}
+            #api_status = status.HTTP_400_BAD_REQUEST
+    
+        return (content)
+
+#rundue=get_billamount()
+#print(rundue)
+
+
+
+
+
+#@app.route("/pay", methods=['POST'])
+       def __pay_bill__(self):
+        content = { "data": None, "error": None }
+        #api_status = status.HTTP_200_OK
+
+        #if request.method == 'POST':
+        #data = request.get_json();
+        key_count=0
+        key_check=['aws_user_login','aws_password','tneb_check_id','state','pay_option']
+        for k,v in data.items():
+             if k in key_check:
+                  key_count+=1
+        if key_count == 5:
+            #if type=='amazon':
+             if data['pay_option']=='yes':
+              try:
+                #self.driver = webdriver.Chrome(options=self.options)
+                self.driver.get(amazon_link)
+                time.sleep(4)
+                #//*[@id="nav-link-accountList"]
+                #aws_driver.find_element_by_xpath('//*[@id="nav-link-accountList"]').click()
+                self.driver.find_element_by_css_selector('a[id^="nav-link-accountList"]').click()
+                Aws_mail_or_number=self.driver.find_element_by_xpath('//*[@id="ap_email"]')
+                time.sleep(2)
+                Aws_mail_or_number.send_keys(data['aws_user_login'])
+                self.driver.find_element_by_xpath('//*[@id="continue"]').click()
+                Aws_user_password=self.driver.find_element_by_xpath('//*[@id="ap_password"]')
+                Aws_user_password.send_keys(data['aws_password'])
+                time.sleep(2)
+                self.driver.find_element_by_xpath('//*[@id="signInSubmit"]').click()
+                errork=BeautifulSoup(self.driver.page_source, 'html5lib')
+                try:
+                   self.driver.find_element_by_xpath('//*[@id="nav-xshop"]/a[1]').click()
+                   
+                   #aws_driver.save_screenshot(bill_path+'/'+'error.png')
+                   #print('ll')
+                except:
+                   self.driver.find_element_by_xpath('//a[text()="Amazon Pay"]').click()       #.find_element_by_xpath('//*[@id="nav-xshop"]/a[1]').click()     
+                   #aws_driver.save_screenshot(bill_path+'/'+'error.png')
+                   #print('oo')
+                try: 
+                   time.sleep(1)
+                   self.driver.find_element_by_xpath('//*[@id="nav-your-amazon-text"]').click()
+                   self.driver.find_element_by_xpath('//a[text()="Amazon Pay"]').click() 
+                   time.sleep(2)
+                   #money=aws_driver.find_element_by_xpath('//*[@id="APayBalance"]/div[1]/div/div[2]/span').get_attribute('textContent')
+                   money=self.driver.find_element_by_css_selector('span[class^="currency-green"]').get_attribute('textContent')
+                except Exception:
+                   self.driver.find_element_by_xpath('//*[@id="apay-sticker"]/a').click()
+                   time.sleep(2)
+                   #money=aws_driver.find_element_by_xpath('//*[@id="APayBalance"]/div[1]/div/div[2]/span').get_attribute('textContent')
+                   money=self.driver.find_element_by_css_selector('span[class^="currency-green"]').get_attribute('textContent')
+                time.sleep(1)
+                #aws_driver.find_element_by_xpath('//*[@id="Electricity"]/span/a/div[2]/span').click()
+                self.driver.find_element_by_xpath('//span[text()="Electricity"]').click()
+                time.sleep(2)
+                self.driver.find_element_by_xpath('//*[@id="a-autoid-0-announce"]').click()
+                #state_click='//*[@id="ELECTRICITY_'+str(state_name[data['state']])+'"]'
+                state_click=state_name[data['state']]
+                time.sleep(1)
+                self.driver.find_element_by_xpath(state_click).click()
+                time.sleep(3)
+                tneb_check_id = self.driver.find_element_by_xpath('//*[@id="Consumer Number"]')
+                tneb_check_id.send_keys(data['tneb_check_id'])
+                self.driver.find_element_by_xpath('//*[@id="fetchBillActionId"]').click()
+                time.sleep(8)
+                
+                try:
+                   detail_scr= BeautifulSoup(self.driver.page_source, 'html5lib')
+                   payment_detail=detail_scr.find_all("div",{"class": "a-section a-padding-medium"})
+                   content["data"] = { "Amazon_Response": {}, "Wallet_Balance": {},"Amazon_Tran_Id":{} }
+                   content["data"] ={"parse_data": {}}
+                   #content["data"]["parse_data"]["error_image"]=bill_path+'/'+'error.png'
+                   if payment_detail:
+                      Aws_payment_info=payment_detail[0].text
+                    
+                   else :
+                      time.sleep(10)
+                      detail_scr= BeautifulSoup(self.driver.page_source, 'html5lib')
+                      payment_detail=detail_scr.find_all("div",{"class": "a-section a-padding-medium"})
+                      Aws_payment_info=payment_detail[0].text
+                    
+                   content["data"]["parse_data"]["Amazon_Response"]=str(Aws_payment_info)
+                   if money:
+                       content["data"]["parse_data"]["Wallet_Balance"]=str(money.strip())
+                   content["data"]["parse_data"]["Amazon_Tran_Id"]=str(data['tneb_check_id'])
+                
+                
+                   self.driver.close()
+                except Exception:
+                   
+                   
+                   
+                   
+                   duess_info= BeautifulSoup(self.driver.page_source, 'html5lib')
+                   duess_table=duess_info.find("table",{"id":"fetch-bill-table"})
+                   duess_td=duess_table.find_all("td")
+                   duess_info=[gg.text.replace('\n', '').replace(' ','') for gg in duess_td]
+                   
+                   filter(None, duess_info)
+                   
+                   if duess_info[0]!='Customer Name':
+                        duess_info=duess_info[1:]
+                   
+                   i = iter(duess_info)
+                   dic_info = dict(zip(i, i))
+                   
+                   billam=[s for s in str(dic_info["Billamount"]).split('\xa0') ]
+                   payam=[s for s in str(money.strip()).split('₹') ]
+                   
+                   
+                   pay_balance=[billam[-1],payam[-1]]
+                   
+                   content["data"] ={"parse_data": {}}
+                   #content["data"]["parse_data"]["error_image"]=bill_path+'/'+'error.png'
+                   if len(pay_balance)>1: 
+                      if pay_balance[0]<pay_balance[1] :
+                         self.driver.find_element_by_xpath('//*[@id="paymentBtnId-announce"]').click()
+                         time.sleep(3)
+                         balan=round(float(pay_balance[0]))-round(float(pay_balance[1]))
+                         self.driver.find_element_by_css_selector('span[class^="a-button a-button-span12 a-button-primary pmts-button-input"]').click()        
+                         try:
+                            time.sleep(10) 
+                            self.driver.find_element_by_css_selector('span[class^="a-button-inner a-button-span12"]').click()
+                            
+                         except Exception:
+                            time.sleep(10)
+                            self.driver.find_element_by_css_selector('span[class^="a-button-inner a-button-span12"]').click()
+                            
+                            
+                         self.driver.find_element_by_xpath('//*[@id="nav-orders"]').click()
+                         time.sleep(2)
+                         self.driver.find_element_by_xpath('//*[@id="ordersContainer"]/div[2]/div[1]/div/div/div/div[2]/div[2]/ul/a').click()
+                         time.sleep(2)
+                         order_scr= BeautifulSoup(self.driver.page_source, 'html5lib')
+                         order_num=str(order_scr.find("bdi").text)
+                         operator_div=order_scr.find("div",{"class": "a-fixed-left-grid-col a-col-right"})
+                         operator_div2=operator_div.find_all("div")
+                         operator_div3=operator_div2[1].find_all("div")
+                         operator_div4=operator_div3[8].find_all("div")
+                         operator_numb=str(operator_div4[0].text)
+                         operator_number=operator_numb.split('\n')[-2].strip()
+                         
+                         content["data"]["parse_data"]["order_number"]=order_num
+                         content["data"]["parse_data"]["operator_reference_number"]=operator_number
+                         content["data"]["parse_data"]["paid_info"]="successfully paid"
+                         content["data"]["parse_data"]["balance_amount"]=str(balan)
+                         
+                         content["data"]["parse_data"]["Amazon_Tran_Id"]=str(data['tneb_check_id'])
+                      else:
+                         
+                         content["data"]["parse_data"]["paid_info"]="insufficient balance, "+str(pay_balance[0])+" need to be paid"+" but available balance is "+str(pay_balance[1])
+                         content["data"]["parse_data"]["bill_amount"]=str(pay_balance[0])
+                                                                     
+                         if money:
+                              content["data"]["parse_data"]["Wallet_Balance"]=str(money.strip())
+                         content["data"]["parse_data"]["Amazon_Tran_Id"]=str(data['tneb_check_id'])
+                   self.driver.close()
+              
+              except Exception as e:
+                   content["error"]=str(e)
+                   return content, api_status
+             
+             if data['pay_option']=='no':
+              
+              try:
+                #self.driver = webdriver.Chrome(options=self.options)
+                self.driver.get(amazon_link)
+                time.sleep(4)
+                self.driver.find_element_by_css_selector('a[id^="nav-link-accountList"]').click()
+                Aws_mail_or_number=self.driver.find_element_by_xpath('//*[@id="ap_email"]')
+                time.sleep(2)
+                Aws_mail_or_number.send_keys(data['aws_user_login'])
+                self.driver.find_element_by_xpath('//*[@id="continue"]').click()
+                Aws_user_password=self.driver.find_element_by_xpath('//*[@id="ap_password"]')
+                Aws_user_password.send_keys(data['aws_password'])
+                time.sleep(2)
+                self.driver.find_element_by_xpath('//*[@id="signInSubmit"]').click()
+                try:
+                   self.driver.find_element_by_xpath('//*[@id="nav-xshop"]/a[1]').click()
+                   
+                   #aws_driver.save_screenshot(bill_path+'/'+'error.png')
+                   #print('ll')
+                except:
+                   self.driver.find_element_by_xpath('//a[text()="Amazon Pay"]').click()       #.find_element_by_xpath('//*[@id="nav-xshop"]/a[1]').click()     
+                   #aws_driver.save_screenshot(bill_path+'/'+'error.png')
+                   #print('oo')
+                try: 
+                   time.sleep(1)
+                   self.driver.find_element_by_xpath('//*[@id="nav-your-amazon-text"]').click()
+                   self.driver.find_element_by_xpath('//a[text()="Amazon Pay"]').click() 
+                   time.sleep(2)
+                   #money=aws_driver.find_element_by_xpath('//*[@id="APayBalance"]/div[1]/div/div[2]/span').get_attribute('textContent')
+                   money=self.driver.find_element_by_css_selector('span[class^="currency-green"]').get_attribute('textContent')
+                except Exception:
+                   self.driver.find_element_by_xpath('//*[@id="apay-sticker"]/a').click()
+                   time.sleep(2)
+                   #money=aws_driver.find_element_by_xpath('//*[@id="APayBalance"]/div[1]/div/div[2]/span').get_attribute('textContent')
+                   money=self.driver.find_element_by_css_selector('span[class^="currency-green"]').get_attribute('textContent')
+                time.sleep(1)
+                #aws_driver.find_element_by_xpath('//*[@id="Electricity"]/span/a/div[2]/span').click()
+                self.driver.find_element_by_xpath('//span[text()="Electricity"]').click()
+                time.sleep(2)
+                self.driver.find_element_by_xpath('//*[@id="a-autoid-0-announce"]').click()
+                #state_click='//*[@id="ELECTRICITY_'+str(state_name[data['state']])+'"]'
+                state_click=state_name[data['state']]
+                time.sleep(1)
+                self.driver.find_element_by_xpath(state_click).click()
+                time.sleep(3)
+                tneb_check_id = self.driver.find_element_by_xpath('//*[@id="Consumer Number"]')
+                tneb_check_id.send_keys(data['tneb_check_id'])
+                self.driver.find_element_by_xpath('//*[@id="fetchBillActionId"]').click()
+                time.sleep(10)
+                detail_scr= BeautifulSoup(self.driver.page_source, 'html5lib')
+                try:
+                   payment_detail=detail_scr.find_all("div",{"class": "a-section a-padding-medium"})
+                   content["data"] = { "Amazon_Response": {}, "Wallet_Balance": {},"Amazon_Tran_Id":{} }
+                   content["data"] ={"parse_data": {}}
+                   if payment_detail:
+                      Aws_payment_info=payment_detail[0].text
+                    
+                   else :
+                      time.sleep(10)
+                      detail_scr= BeautifulSoup(self.driver.page_source, 'html5lib')
+                      payment_detail=detail_scr.find_all("div",{"class": "a-section a-padding-medium"})
+                      Aws_payment_info=payment_detail[0].text
+                    
+                   content["data"]["parse_data"]["Amazon_Response"]=str(Aws_payment_info)
+                   if money:
+                       content["data"]["parse_data"]["Wallet_Balance"]=str(money.strip())
+                   content["data"]["parse_data"]["Amazon_Tran_Id"]=str(data['tneb_check_id'])
+                
+                
+                   self.driver.close()
+                except Exception:
+                   
+                   duess_info= BeautifulSoup(self.driver.page_source, 'html5lib')
+                   duess_table=duess_info.find("table",{"id":"fetch-bill-table"})
+                   duess_td=duess_table.find_all("td")
+                   duess_info=[gg.text.replace('\n', '').replace(' ','') for gg in duess_td]
+                   
+                   filter(None, duess_info)
+                   
+                   if duess_info[0]!='Customer Name':
+                        duess_info=duess_info[1:]
+                   
+                   i = iter(duess_info)
+                   dic_info = dict(zip(i, i))
+                   
+                   content["data"] ={"parse_data": {}}
+                   if 'CustomerName' in dic_info:
+                         content["data"]["parse_data"]["Customer_Name"]=dic_info["CustomerName"]
+                   if 'BillDate' in dic_info:
+                         content["data"]["parse_data"]["Bill_Date"]=dic_info["BillDate"]
+                   if 'DueDate' in dic_info:
+                         content["data"]["parse_data"]["Due_Date"]=dic_info["DueDate"]
+                   if 'Billamount' in dic_info:
+                         content["data"]["parse_data"]["Bill_amount"]=dic_info["Billamount"]
+                   if money:
+                         content["data"]["parse_data"]["Wallet_Balance"]=str(money.strip())
+                   content["data"]["parse_data"]["Amazon_Tran_Id"]=str(data['tneb_check_id'])
+                   self.driver.close()
+              except Exception as e:
+                content["error"]=str(e)
+                return content, api_status
+              
+        #else:
+         #  content["error"] = "some parameters are missing"
+          # api_status = status.HTTP_400_BAD_REQUEST
+
+        return  content
+
+#runpay=pay_bill()
+
+#print(runpay)
+
+
+
+
+#@app.route("/bill", methods=['POST'])
+       def __pay_bill_pdf__(self):
+        content = { "data": None, "error": None }
+        content["data"] = {"scraped_data":{},"parsed_data" : {}, "bill_path":{}}
+        #api_status = status.HTTP_200_OK
+
+        #if request.method == 'POST':
+        #   data = request.get_json();
+        key_count=0
+        key_check=['tneb_user_id','tneb_password','tneb_check_id']
+        for k,v in data.items():
+             if k in key_check:
+                  key_count+=1
+        if key_count == 3:
+           try:
+            if key_count == 3:
+                #self.driver = webdriver.Chrome(options=self.options)
+                self.driver.get(tneb_link)
+                
+                mail_or_number=self.driver.find_element_by_xpath('//*[@id="userName"]')
+                mail_or_number.send_keys(data['tneb_user_id'])
+                user_password=self.driver.find_element_by_xpath('//*[@id="password"]')
+                user_password.send_keys(data['tneb_password'])
+                time.sleep(1)
+                self.driver.find_element_by_xpath('//*[@id="lin"]/table/tbody/tr/td[1]/table/tbody/tr[6]/td/input').click()
+                
+                time.sleep(3)
+                self.driver.find_element_by_xpath('//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[7]').click()
+                time.sleep(2)
+                self.driver.find_element_by_css_selector('button[class^="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only"]').click()
+                time.sleep(1)
+                region_num=int(data['tneb_check_id'][1])-1
+                self.driver.find_element_by_css_selector(region_button[region_num]).click()
+                sub_consumer_num=self.driver.find_element_by_xpath('//*[@id="form:consumerRef"]')
+                sub_consumer_num.send_keys(data['tneb_check_id'][2:])
+                time.sleep(4)
+                self.driver.find_element_by_xpath('//span[text()="Check detail"]').click()
+                time.sleep(1)
+                self.driver.find_element_by_xpath('//span[text()="Confirm"]').click()
+                time.sleep(2)
+                ebill_delete=['//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[2]','//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[3]','//*[@id="header1"]/div/table/tbody/tr[3]/td/label/a[8]']
+            
+                for hhk in range(0,len(ebill_delete)):
+                   if hhk==0:
+                         self.driver.find_element_by_xpath(ebill_delete[hhk]).click()
+                         time.sleep(1)
+                         info_html=BeautifulSoup(self.driver.page_source, 'html5lib')
+                         info_div=info_html.find('div',class_='ui-fieldset-content')
+                         info_div_two=info_div.find_all('div',class_='ui-dt-c')
+                         info_div_two_clone=info_div_two[:]
+                         table_head=[]
+                         for ff in info_div_two:
+                             if 'span' in str(ff):
+                                  table_head.append(ff)
+                                  info_div_two_clone.remove(ff)
+                             else:
+                                  break
+                         table_value=[]
+                         for gg in info_div_two_clone:
+                             if 'div' in str(gg):
+                                  table_value.append(gg)
+            
+                         table_head_col=list(filter(None, [ho.get_text() for ho in table_head]))[:-1]
+                         row_value=list(filter(None, [hg.get_text() for hg in table_value]))
+                         row_value_index=row_value.index(data['tneb_check_id'])
+                         table_value_row=row_value[row_value_index:row_value_index+5]
+                         if 'Pay' in table_value_row[-1]:
+                              table_value_row=table_value_row[:-1]
+            
+                         if len(table_head_col)>len(table_value_row) and len(table_head_col)-len(table_value_row)==1 :
+                              table_value_row.append('-')
+                         due_bill_info= dict(zip(table_head_col, table_value_row))
+                         
+                         content["data"]["scraped_data"]=due_bill_info
+                         
+                         if "Consumer Address" in due_bill_info:
+                                 content["data"]["parsed_data"]["consumer_address"] = due_bill_info["Consumer Address"]
+                         if "Due Date" in due_bill_info:
+                                 content["data"]["parsed_data"]["due_date"] = due_bill_info["Due Date"]
+                         
+                         
+                         
+                   if hhk==1 or hhk==2:      
+                    self.driver.find_element_by_xpath(ebill_delete[hhk]).click()
+                    time.sleep(1)
+                    cross_html=BeautifulSoup(self.driver.page_source, 'html5lib')
+                    pagess=cross_html.find('span',class_='ui-paginator-pages')
+                    pages_num=[hh.get_text() for hh in pagess]
+                    add_value=0
+                    for ll in pages_num:
+                           self.driver.find_element_by_xpath('//span[text()='+str(ll)+']').click()
+                           time.sleep(2)
+                           cross_htmls=BeautifulSoup(self.driver.page_source, 'html5lib')
+                           cross_div=cross_htmls.find('div',class_='ui-fieldset-content')
+                           cross_div_two=cross_div.find_all('div',class_='ui-dt-c')
+                           cross_div_two_clone=cross_div_two[:]
+                           cross_table_value=[]
+                           for gg in cross_div_two_clone:
+                                  if 'div' in str(gg):
+                                     cross_table_value.append(gg)
+            
+            
+                           cross_row_value=list(filter(None, [hg.get_text() for hg in cross_table_value]))[4:]
+                           if data['tneb_check_id'] in cross_row_value:
+                                    button_key=cross_row_value.index(data['tneb_check_id'])+1
+                                    if cross_row_value.index(data['tneb_check_id']) % 2 !=0:
+                                                    button_key=button_key+1
+                                    button_key_add=button_key+3
+                                    index_cross=str(button_finder[button_key_add]+add_value)
+                                    button_str='button[id*=":'+index_cross+':"]'
+                                    self.driver.find_element_by_css_selector(button_str).click()
+                                    time.sleep(3)
+                                    if hhk==1:
+                                                    self.driver.find_element_by_css_selector('button[id*=":0:"]').click()
+                                                    time.sleep(3)
+                                                    ebbill= BeautifulSoup(self.driver.page_source, 'html5lib')
+                                                    bill_text_div=ebbill.find("div",{"id":"form:display_content"}).get_text()
+                                                    bill_heading_table=ebbill.find('table',attrs={"width":"100%"})
+                                                    bill_heading_row=bill_heading_table.find_all('td')
+                                                    bill_info_table=ebbill.find('table',attrs={"cellpadding":"4"})  
+                                                    bill_info_row=bill_info_table.find_all('td')
+                                                    bill_header=list(filter(None, [ho.get_text() for ho in bill_heading_row]))
+                                                    
+                                                    def Convert(lst): 
+                                                             res_dct = {lst[i]: lst[i + 1] for i in range(0, len(lst), 2)} 
+                                                             return res_dct 
+                                                    bill_down_text=list(filter(None,bill_text_div.rstrip().split('\n')))
+                                                    bill_ref=['Already existing','New subsidy','Total subsidy','Receipt issued']
+                                                    bill_down_text_info=[hh for gg in bill_ref for hh in bill_down_text  if gg in hh]
+                                                    down_info=list(set(bill_down_text_info))
+                                                    down=[]
+                                                    for gg in range(0,len(bill_ref)):
+                                                            for hh in down_info:
+                                                                try:
+                                                                   if bill_ref[gg] in hh and bill_ref[gg+1] not in hh:
+                                                                        
+                                                                        ddf=hh.split(bill_ref[gg])
+                                                                        ddf[1]=gg+' '+ddf[1]
+                                                                        down.append(ddf)
+                                                                except Exception:
+                                                                   if bill_ref[gg] in hh :
+                                                                        
+                                                                            ddf=hh.split(bill_ref[gg])
+                                                                            ddf[1]=bill_ref[gg]+' '+ddf[1]
+                                                                            down.append(ddf)
+                                                    bill_down_text_infos=list(itertools.chain.from_iterable(down))
+                                                    bill_text=Convert(list(filter(None, [ho.get_text() for ho in bill_info_row])))
+                                                    bill_list=list(filter(None, [ho.get_text() for ho in bill_info_row]))
+                                                    bill_dic=dict(bill_text)
+                                                    bill_text_pair=[dd+' '+kk for dd,kk in bill_text.items()]
+                                                    full_pdf_info=bill_header+bill_list+bill_down_text_infos
+                                                    #print(down_info)
+                                                    if len(full_pdf_info)!=26:
+                                                         for kk in range(0,26-len(full_pdf_info)):
+                                                                 full_pdf_info.append('')
+                                                    elements= [{ 'name': full_pdf_info[0], 'type': 'T', 'x1': 40.0, 'y1': 32.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[1], 'type': 'T', 'x1': 90.0, 'y1': 46.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[2], 'type': 'T', 'x1': 10.0, 'y1': 68.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[3], 'type': 'T', 'x1': 60.0, 'y1': 68.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[4], 'type': 'T', 'x1': 105.0, 'y1': 68.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[5], 'type': 'T', 'x1': 154.0, 'y1': 68.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[6], 'type': 'T', 'x1': 10.0, 'y1': 90.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[7], 'type': 'T', 'x1': 60.0, 'y1': 90.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[8], 'type': 'T', 'x1': 105.0, 'y1': 90.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[9], 'type': 'T', 'x1': 154.0, 'y1': 90.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[10], 'type': 'T', 'x1': 10.0, 'y1': 112.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[11], 'type': 'T', 'x1': 60.0, 'y1': 112.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[12], 'type': 'T', 'x1': 105.0, 'y1': 112.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[13], 'type': 'T', 'x1': 154.0, 'y1': 112.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[14], 'type': 'T', 'x1': 10.0, 'y1': 134.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[15], 'type': 'T', 'x1': 60.0, 'y1': 134.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[16], 'type': 'T', 'x1': 105.0, 'y1': 134.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[17], 'type': 'T', 'x1': 154.0, 'y1': 134.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[18], 'type': 'T', 'x1': 10.0, 'y1': 156.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[19], 'type': 'T', 'x1': 60.0, 'y1': 156.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[20], 'type': 'T', 'x1': 105.0, 'y1': 156.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[21], 'type': 'T', 'x1': 154.0, 'y1': 156.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 1, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[22], 'type': 'T', 'x1': 10.0, 'y1': 186.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 0, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[23], 'type': 'T', 'x1': 10.0, 'y1': 196.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 0, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[24], 'type': 'T', 'x1': 10.0, 'y1': 206.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 0, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               { 'name': full_pdf_info[25], 'type': 'T', 'x1': 10.0, 'y1': 216.5, 'x2': 115.0, 'y2': 37.5, 'font': 'Arial', 'size': 12.0, 'bold': 0, 'italic': 0, 'underline': 0, 'foreground': 0, 'background': 0, 'align': 'I', 'text': '', 'priority': 2, },
+                                                               ]
+                 
+                                                    
+                                                    
+                                                   
+                                                    pdf = Template(format="A4", elements=elements,title="Sample Invoice")
+                                                    pdf.add_page()
+                                                    pdf[full_pdf_info[0]]=full_pdf_info[0]
+                                                    pdf[full_pdf_info[1]]=full_pdf_info[1]
+                                                    pdf[full_pdf_info[2]]=full_pdf_info[2]
+                                                    pdf[full_pdf_info[3]]=full_pdf_info[3]
+                                                    pdf[full_pdf_info[4]]=full_pdf_info[4]
+                                                    pdf[full_pdf_info[5]]=full_pdf_info[5]
+                                                    pdf[full_pdf_info[6]]=full_pdf_info[6]
+                                                    pdf[full_pdf_info[7]]=full_pdf_info[7]
+                                                    pdf[full_pdf_info[8]]=full_pdf_info[8]
+                                                    pdf[full_pdf_info[9]]=full_pdf_info[9]
+                                                    pdf[full_pdf_info[10]]=full_pdf_info[10]
+                                                    pdf[full_pdf_info[11]]=full_pdf_info[11]
+                                                    pdf[full_pdf_info[12]]=full_pdf_info[12]
+                                                    pdf[full_pdf_info[13]]=full_pdf_info[13]
+                                                    pdf[full_pdf_info[14]]=full_pdf_info[14]
+                                                    pdf[full_pdf_info[15]]=full_pdf_info[15]
+                                                    pdf[full_pdf_info[16]]=full_pdf_info[16]
+                                                    pdf[full_pdf_info[17]]=full_pdf_info[17]
+                                                    pdf[full_pdf_info[18]]=full_pdf_info[18]
+                                                    pdf[full_pdf_info[19]]=full_pdf_info[19]
+                                                    pdf[full_pdf_info[20]]=full_pdf_info[20]
+                                                    pdf[full_pdf_info[21]]=full_pdf_info[21]
+                                                    pdf[full_pdf_info[22]]=full_pdf_info[22]
+                                                    pdf[full_pdf_info[23]]=full_pdf_info[23]
+                                                    pdf[full_pdf_info[24]]=full_pdf_info[24]
+                                                    pdf[full_pdf_info[25]]=full_pdf_info[25]
+                                                    
+                                                    path=os.path.exists(bill_path)
+                                                    if path == False:
+                                                               os.mkdir(bill_path)
+                                                    customer_bill_path = os.path.exists(bill_path+'/'+data["tneb_check_id"])
+                                                    if customer_bill_path == False:
+                                                               os.mkdir(bill_path+'/'+data["tneb_check_id"])
+                
+                                                    pdf_path=bill_path+'/'+data["tneb_check_id"]+"/tneb_bill_of_"+bill_dic['Bill Month/Year:'].replace('/','_')+".pdf"
+                                                    
+                                                    pdf_path_check=os.path.exists(pdf_path)
+                                                    
+                                                    if pdf_path_check==True :
+                                                             os.remove(pdf_path)
+                                                             
+                                                    
+                                                    
+                
+                                                    pdf.render(bill_path+'/'+data["tneb_check_id"]+"/tneb_bill_of_"+bill_dic['Bill Month/Year:'].replace('/','_')+".pdf")
+                                                    
+                                                    self.driver.find_element_by_css_selector('a[href*="#"]').click()
+                                                    time.sleep(15)
+                                                    
+                                                    if bill_dic:
+                                                          if bill_dic["Amount Debited:"]:
+                                                                    content["data"]["scraped_data"]["Amount Debited:"]=bill_dic["Amount Debited:"]
+                                                                    #content["data"]["parsed_data"]["debited"]=bill_dic["Amount Debited:"]
+                                                          if bill_dic["Bank Authorisation.Id:"]:
+                                                                    content["data"]["scraped_data"]["Bank Authorisation.Id:"]=bill_dic["Bank Authorisation.Id:"]
+                                                                    #content["data"]["parsed_data"]["bank_auth_id"]=bill_dic["Bank Authorisation.Id:"]
+                                                          if bill_dic["Bank Transaction.No:"]:
+                                                                    content["data"]["scraped_data"]["Bank Transaction.No:"]=bill_dic["Bank Transaction.No:"]
+                                                                    #content["data"]["parsed_data"]["bank_trans_no"]=bill_dic["Bank Transaction.No:"]
+                                                          if bill_dic["Bill Amount:"]:
+                                                                    content["data"]["scraped_data"]["Bill Amount:"]=bill_dic["Bill Amount:"]
+                                                                    content["data"]["parsed_data"]["bill_amount"]=bill_dic["Bill Amount:"]
+                                                          if bill_dic["Bill Month/Year:"]:
+                                                                    content["data"]["scraped_data"]["Bill Month/Year:"]=bill_dic["Bill Month/Year:"]
+                                                                    #content["data"]["parsed_data"]["bill_month_year"]=bill_dic["Bill Month/Year:"]
+                                                          if bill_dic["Card Type:"]:
+                                                                    content["data"]["scraped_data"]["Card Type:"]=bill_dic["Card Type:"]
+                                                                    #content["data"]["parsed_data"]["card_type"]=bill_dic["Card Type:"]
+                                                          if bill_dic["Name:"]:
+                                                                    content["data"]["scraped_data"]["Name:"]=bill_dic["Name:"]
+                                                                    content["data"]["parsed_data"]["consumer_name"]=bill_dic["Name:"]
+                                                          if bill_dic["Receipt Date:"]:
+                                                                    content["data"]["scraped_data"]["Receipt Date:"]=bill_dic["Receipt Date:"]
+                                                                    content["data"]["parsed_data"]["payment_date"]=bill_dic["Receipt Date:"]
+                                                          if bill_dic["Receipt No"]:
+                                                                    content["data"]["scraped_data"]["Receipt No"]=bill_dic["Receipt No"]
+                                                                    content["data"]["parsed_data"]["receipt_no"]=bill_dic["Receipt No"]
+                                                          if bill_dic["Service No:"]:
+                                                                    content["data"]["scraped_data"]["Service No:"]=bill_dic["Service No:"]
+                                                                    #content["data"]["parsed_data"]["service_no"]=bill_dic["Service No:"]
+             
+                                                    
+                                                                
+                                                    if pdf :
+                                                                content["data"]["bill_path"]["pdf_url"] = "/bills/" + data["tneb_check_id"] + "/tneb_bill_of_" + bill_dic['Bill Month/Year:'].replace('/','_')+".pdf";
+                                                    
+                                                                
+                                    if hhk==2:
+                                                    self.driver.close()
+                           else:
+                                add_value+=5
+                                continue
+            
+                 
+            
+           except Exception as e:
+                content["error"]=str(e)
+                return content                   
+          
+                                
+        #else:
+         #   content["error"] = "some parameters are missing"
+          #  api_status = status.HTTP_400_BAD_REQUEST
+
+        return content
+            
+#runpdf=pay_bill_pdf()
+#print(runpdf)
+ 
+
+
+
+
+
+with WebDriver() as driver:
+    print(driver.__pay_bill_pdf__())
+
+
+
+
+
+#if __name__ == "__main__":
+ #   app.run(host='0.0.0.0')
