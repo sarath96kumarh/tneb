@@ -1,0 +1,3 @@
+mongodb+srv://sarath:<password>@cluster0.bylev.mongodb.net/myFirstDatabase?retryWrites=true&w=majority
+
+1887402558:AAELc78xMBlXs5-I_wh6UWo6Spg_MTqo400
